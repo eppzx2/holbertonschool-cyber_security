@@ -1,2 +1,2 @@
 #!/bin/bash
-ps aux | grep "^$1" | grep -v " 0 "
+ps -u "$1" -o pid,user,vsz,rss,cmd | grep -vE '^[[:space:]]*PID| 0 +0 '
