@@ -1,2 +1,2 @@
 #!/bin/bash
-sudo lastlog | tail -5
+sudo last -F | tail -5
