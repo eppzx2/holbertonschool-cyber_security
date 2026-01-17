@@ -13,3 +13,10 @@ By completing this module, you will:
 - Apply basic security concepts in real-world scenarios
 - Develop security-conscious thinking and practices
 - Build foundational skills for advanced cybersecurity topics
+
+**Repository**: holbertonschool-cyber_security  
+**Module**: Cybersecurity Basics  
+**Level**: Beginner  
+**Prerequisites**: Basic computer literacy  
+**Duration**: 2-3 weeks  
+**Last Updated**: 2026
