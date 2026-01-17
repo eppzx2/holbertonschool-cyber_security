@@ -14,3 +14,10 @@ By completing this module, you will:
 - Perform security auditing and vulnerability assessment
 - Develop secure Linux administration skills
 - Understand Linux threat landscape and mitigation strategies
+
+**Repository**: holbertonschool-cyber_security  
+**Module**: Linux Security  
+**Level**: Intermediate  
+**Prerequisites**: Linux administration basics, cybersecurity fundamentals  
+**Duration**: 3-4 weeks  
+**Last Updated**: 2026
