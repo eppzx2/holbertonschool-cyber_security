@@ -8,6 +8,7 @@ and replaces it with another string.
 
 import sys
 
+
 def main():
     if len(sys.argv) != 4:
         print(f"Usage: {sys.argv[0]} pid search_string replace_string")
@@ -69,6 +70,5 @@ def main():
 
 
 if __name__ == "__main__":
-
 
     main()
