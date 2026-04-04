@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+
 """
 Script that finds an ASCII string in the heap of a running process
 and replaces it with another string.
@@ -42,19 +43,19 @@ def main():
         with open(mem_path, 'r+b') as mem_file:
             mem_file.seek(heap_start)
             heap_data = mem_file.read(heap_end - heap_start)
-            
+
             search_bytes = search_str.encode('ascii')
             # Yeni string qısa olarsa, sonuna null byte əlavə edirik
             replace_bytes = replace_str.encode('ascii') + b'\0'
-            
+
             offset = heap_data.find(search_bytes)
-            
+
             if offset == -1:
                 print(f"Error: String '{search_str}' not found in the heap.")
                 sys.exit(1)
-            
+
             write_addr = heap_start + offset
-            
+
             mem_file.seek(write_addr)
             mem_file.write(replace_bytes)
 
@@ -66,4 +67,6 @@ def main():
         sys.exit(1)
 
 if __name__ == "__main__":
+
+
     main()
