@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 """
 Script that finds an ASCII string in the heap of a running process
 and replaces it with another string.
