@@ -5,6 +5,7 @@
 Script that finds an ASCII string in the heap of a running process
 and replaces it with another string.
 """
+
 import sys
 
 def main():
@@ -65,6 +66,7 @@ def main():
     except Exception as e:
         print(f"Error reading/writing memory: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
 
