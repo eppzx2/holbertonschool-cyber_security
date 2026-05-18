@@ -1,10 +1,5 @@
-require_relative '3-read_file'
-require_relative '4-write_file'
+require_relative '1-hello_world_class'
 
-file1_path = 'file_to_copy_from.json'
-file2_path = 'file.json'
+hello_world_instance = HelloWorld.new
 
-merge_json_files(file1_path, file2_path)
-
-count_user_ids(file2_path)
-
+hello_world_instance.print_hello
