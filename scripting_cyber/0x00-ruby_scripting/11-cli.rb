@@ -3,7 +3,7 @@ require 'optparse'
 
 TASK_FILE = 'tasks.txt'
 
-# Helper method to load tasks from the file
+# Sənəddən tapşırıqları oxumaq üçün köməkçi metod
 def read_tasks
   if File.exist?(TASK_FILE)
     File.readlines(TASK_FILE).map(&:chomp)
@@ -12,7 +12,7 @@ def read_tasks
   end
 end
 
-# Helper method to save tasks back to the file
+# Tapşırıqları sənədə yazmaq üçün köməkçi metod
 def write_tasks(tasks)
   File.open(TASK_FILE, 'w') do |file|
     tasks.each { |task| file.puts(task) }
@@ -21,7 +21,7 @@ end
 
 options = {}
 
-# Set up OptionParser
+# OptionParser qurulması
 parser = OptionParser.new do |opts|
   opts.banner = "Usage: cli.rb [options]"
 
@@ -37,14 +37,12 @@ parser = OptionParser.new do |opts|
     options[:remove] = index.to_i
   end
 
-  # Custom help option to match exact output requirements
   opts.on("-h", "--help", "Show help") do
     puts opts
     exit
   end
 end
 
-# Parse the command-line arguments
 begin
   parser.parse!
 rescue OptionParser::ParseError
@@ -52,7 +50,7 @@ rescue OptionParser::ParseError
   exit
 end
 
-# Handle CLI Actions
+# CLI Əməliyyatlarının idarə olunması
 if options[:add]
   tasks = read_tasks
   tasks << options[:add]
@@ -61,6 +59,7 @@ if options[:add]
 
 elsif options[:list]
   tasks = read_tasks
+  puts "Tasks:" # Testerin tələb etdiyi başlıq bura əlavə olundu
   tasks.each_with_index do |task, index|
     puts "#{index + 1}. #{task}"
   end
