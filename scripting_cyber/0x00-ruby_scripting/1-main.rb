@@ -1,5 +1,5 @@
-require_relative '1-hello_world_class'
+require_relative '8-post'
 
-hello_world_instance = HelloWorld.new
-
-hello_world_instance.print_hello
+url = 'https://jsonplaceholder.typicode.com/posts'
+body_params = { title: 'Try to Post', body: "Okay that's good", userId: 11, id: 101 }
+post_request(url, body_params)
