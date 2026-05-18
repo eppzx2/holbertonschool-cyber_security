@@ -1,14 +1,15 @@
 #!/usr/bin/env ruby
 require 'net/http'
 require 'uri'
+require 'json'
 
 def post_request(url, body_params)
   uri = URI(url)
   
-  # Send an HTTP POST request with form-encoded body parameters
-  response = Net::HTTP.post_form(uri, body_params)
+  # Sorğunu application/json formatında və body-ni JSON-a çevirərək göndəririk
+  response = Net::HTTP.post(uri, body_params.to_json, { 'Content-Type' => 'application/json' })
   
-  # Print the response details
+  # Cavabı ekrana çıxarırıq
   puts "Response status: #{response.code} #{response.message}"
   puts "Response body:"
   puts response.body
