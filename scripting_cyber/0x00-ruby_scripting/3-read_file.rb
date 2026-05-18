@@ -1,13 +1,18 @@
 #!/usr/bin/env ruby
-def count_user_ids(path)
-  file = File.read(path)
+require 'json'
+require 'open-uri'
 
+def count_user_ids(url)
+  file = URI.open(url).read
   data = JSON.parse(file)
 
-  user_counts = Hash.new(0)
+  counts = Hash.new(0)
 
   data.each do |item|
-    user_id = item["userId"]
-    user_counts[user_id] += 1
+    counts[item["userId"]] += 1
+  end
+
+  counts.each do |id, count|
+    puts "#{id}: #{count}"
   end
 end
