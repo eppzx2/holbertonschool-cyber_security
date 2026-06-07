@@ -1,2 +1,5 @@
 0-ci taskda webhook.site istifade olundu bu bize sorgulari o urlye yonlendirmeye imkan verir
-1-ci taskda {{7*7}} payloadi 49 neticesini verdiyi ucun bildik ki burada ssti boslugu var. ve appin menbe kodunda blackliste dusen simvollari gorduyum ucun filterleri bypass ede bildim. flag challenge/flag.txt qovlugunda idi.
+1-ci taskda {{7*7}} payloadi 49 neticesini verdiyi ucun bildik ki burada ssti boslugu var. ve appin menbe kodunda blackliste dusen simvollari gorduyum ucun filterleri bypass ede bildim. flag challenge/flag.txt qovlugunda idi
+2-ci taskda /report endpointinden dogru parametrleri tapdim (/view?path=) ve path traversal zeifliyi askar etdim. arxa fonda app.js menbe kodlarini oxuyub database.js database.sqlite fayllarini elde etdim. databazadaki super_admin credentials ile login oldum ve menbe kodundan da oxudugum kimi yalniz adminler ucun olan /secret directorysinden flagi elde etdim
+
+4-cu taskda gobbuster ile upload.php endpointini gordum, ora exploit.txt faylini yukleyerken burple sorgunu tutdum. post metodu ile sorgu gondererken access is denied. only admins can upload kimi mesaj alirdim. burpde change request method ile metodu deyisdim PUT etdim ve 200, OK statusuu aldm. content-type hissesini de application/x-www-form-urlencoded ile body hissesinne elave etdim. server bunu unserialize etdi ve bize flagi qaytardi.
